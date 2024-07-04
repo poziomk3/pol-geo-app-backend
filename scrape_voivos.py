@@ -16,6 +16,7 @@ def get_voivo_urls():
     return all_voivos_urls
 
 for x in get_voivo_urls():
+    # print(scrape_voivo(x))
     scrape_voivo(x).write_to_file("wojewodztwa.csv")
 
 # scrape_voivo('https://pl.wikipedia.org//wiki/Wojew%C3%B3dztwo_%C5%82%C3%B3dzkie').write_to_file("wojewodztwo.csv")

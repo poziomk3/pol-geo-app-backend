@@ -1,8 +1,8 @@
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import requests
 from bs4 import BeautifulSoup
-from utils import remove_text_in_brackets, get_image
+from utils import remove_text_in_brackets, get_image, read_from_file
 
 
 @dataclass
@@ -22,35 +22,16 @@ class Voivodeship:
 
     def __str__(self):
         return (
-            f"{self.teryt:2}  {self.iso:4}  {self.country:6}  {self.name:30}  {self.area:10}  {self.population:10}  "
-            f"{self.flag:100}  {self.symbol:100}\n  {self.url:100}  {self.admi_url:100}  {self.detailed_map:100}  "
+            f"{self.teryt:2}  {self.iso:4}  {self.country:6}  {self.name:30}  {self.area:10}  {self.population:10} \n "
+            f"{self.flag:100}  {self.symbol:100}\n  {self.url:100}  {self.admi_url:100}\n  {self.detailed_map:100}  "
             f"{self.undetailed_map:100}")
 
     def __repr__(self):
         return self.__str__()
 
-    def write_to_file(self, filename):
-        with open(filename, 'a', encoding='utf-8', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow([
-                self.teryt, self.iso, self.country, self.name, self.area, self.population, self.flag, self.url,
-                self.admi_url, self.symbol, self.detailed_map, self.undetailed_map
-            ])
 
 
-def read_voivodeships_from_file(filename):
-    voivodeships = []
-    with open(filename, 'r', encoding='utf-8') as csvfile:
-        reader = csv.reader(csvfile)
-        for row in reader:
-            if len(row) == 12:  # Ensure all fields are present
-                voivodeship = Voivodeship(
-                    teryt=row[0], iso=row[1], country=row[2], name=row[3], area=row[4],
-                    population=row[5], flag=row[6], url=row[7], admi_url=row[8],
-                    symbol=row[9], detailed_map=row[10], undetailed_map=row[11]
-                )
-                voivodeships.append(voivodeship)
-    return voivodeships
+
 
 
 def scrape_voivodeship(url: str) -> Voivodeship:
@@ -102,7 +83,7 @@ def get_voivodeship_urls():
 
 
 if __name__ == "__main__":
-    voivodeships = read_voivodeships_from_file("wojewodztwa.csv")
+    voivodeships = read_from_file("wojewodztwa.csv",Voivodeship)
     print(*voivodeships, sep='\n\n')
 
 # class Powiat:

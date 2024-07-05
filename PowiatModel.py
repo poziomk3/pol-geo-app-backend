@@ -73,15 +73,15 @@ def scrape_powiat(url: str):
     symbol, flag = None, None
     index = 2
 
-    while(trs[index].get_attribute_list('class')[0]!=None):
-        index+=1
-    res=[]
+    while (trs[index].get_attribute_list('class')[0] != None):
+        index += 1
+    res = []
     for item in trs[index].find_all('a'):
-        if(item.find('img')!=None):
+        if (item.find('img') != None):
             res.append(item)
-    if len(res)==2:
+    if len(res) == 2:
         symbol, flag = res
-    elif len(res)==1:
+    elif len(res) == 1:
         symbol = res[0]
     else:
         pass
@@ -89,7 +89,7 @@ def scrape_powiat(url: str):
     photo = powiat.find(class_='iboxs')
     voivo = data["TERYT"][0:2]
     map_dets, map = None, None
-    if len(powiat.find_all(class_='iboxs'))  <2:
+    if len(powiat.find_all(class_='iboxs')) < 2:
         pass
     else:
         if len(powiat.find_all(class_='iboxs')[1:]) == 2:
@@ -106,9 +106,9 @@ def scrape_powiat(url: str):
                   detailed_map=get_image(map_dets), undetailed_map=get_image(map))
 
 
-powiats=get_powiats_urls()
+powiats = get_powiats_urls()
 # print(powiats[71:])
 for x in powiats[71:]:
-    powa=scrape_powiat(x)
+    powa = scrape_powiat(x)
     print(powa)
     write_to_file(powa, "powiaty.csv")

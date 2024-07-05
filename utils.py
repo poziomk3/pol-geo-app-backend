@@ -5,7 +5,6 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
-
 core_url = 'https://pl.wikipedia.org/'
 
 
@@ -17,6 +16,7 @@ def get_image(base):
     soup = BeautifulSoup(r.content, 'html.parser')
     return 'https:' + soup.find('div', id='file').find('a').get_attribute_list('href')[0]
 
+
 def get_image_2(base):
     if base is None:
         return ""
@@ -24,7 +24,6 @@ def get_image_2(base):
     r = requests.get(url)
     soup = BeautifulSoup(r.content, 'html.parser')
     return 'https:' + soup.find('div', id='file').find('a').get_attribute_list('href')[0]
-
 
 
 def read_from_file(filename, class_name):

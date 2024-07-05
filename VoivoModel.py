@@ -4,6 +4,8 @@ import requests
 from bs4 import BeautifulSoup
 from utils import remove_text_in_brackets, get_image, read_from_file
 
+core_url = 'https://pl.wikipedia.org/'
+
 
 @dataclass
 class Voivodeship:
@@ -30,49 +32,72 @@ class Voivodeship:
         return self.__str__()
 
 
+def read_voivos_from_file(filename):
+    voivodeships = []
+    with open(filename, 'r', encoding='utf-8') as csvfile:
+        reader = csv.reader(csvfile)
+        for row in reader:
+            if len(row) == 12:  # Ensure all fields are present
+                voivodeship = Voivodeship(
+                    country=row[2],
+                    iso=row[1],
+                    teryt=row[0],
+                    area=row[4],
+                    population=row[5],
+                    name=row[3],
+                    flag=row[6],
+                    url=row[7],
+                    admi_url=row[8],
+                    symbol=row[9],
+                    detailed_map=row[10],
+                    undetailed_map=row[11]
+                )
+                voivodeships.append(voivodeship)
+    return voivodeships
 
 
-
-
-def scrape_voivodeship(url: str) -> Voivodeship:
+def scrape_voivo(url: str) -> Voivodeship:
     core_url = 'https://pl.wikipedia.org/'
     r = requests.get(url)
     soup = BeautifulSoup(r.content, 'html.parser')
+    admi_url = core_url + \
+               soup.find(attrs={"title": lambda x: x and "Podział administracyjny wojew" in x}).get_attribute_list(
+                   'href')[0]
+    voivo = soup.find_all('table', class_='infobox')
 
-    admi_url = core_url + soup.find(attrs={"title": lambda x: x and "Podział administracyjny wojew" in x})['href']
-    infobox = soup.find_all('table', class_='infobox')[0]
-    name = infobox.find('caption').text.strip()
-    trs = infobox.find_all('tr')
+    if voivo[0].find('caption') is None:
+        voivo = voivo[1]
+    else:
+        voivo = voivo[0]
+    name = voivo.find('caption').text.strip()
+    trs = voivo.find_all('tr')
+    infos = trs[5:15]
 
     data = {}
-    for row in trs:
+    for row in infos:
         cells = row.find_all(['th', 'td'])
-        if cells:
-            header = cells[0].get_text(strip=True).lower()
-            if header in ["państwo", "panstwo"]:
-                data["Państwo"] = remove_text_in_brackets(cells[1].get_text(strip=True))
-            elif "kod" in header:
-                data["ISO"] = remove_text_in_brackets(cells[1].get_text(strip=True))
-            elif "teryt" in header:
-                data["TERYT"] = remove_text_in_brackets(cells[1].get_text(strip=True))
-            elif "powierzchnia" in header:
-                data["Powierzchnia"] = remove_text_in_brackets(cells[1].get_text(strip=True))
-            elif "populacja" in header:
-                data["Populacja"] = remove_text_in_brackets(cells[1].get_text(strip=True))
+        header = ""
+        if cells[0].get_text(strip=True).lower() in ["państwo", "panstwo"]:
+            data["Państwo"] = remove_text_in_brackets(cells[1].get_text(strip=True))
+        elif "kod" in cells[0].get_text(strip=True).lower():
+            data["ISO"] = remove_text_in_brackets(cells[1].get_text(strip=True))
+        elif "TERYT" in cells[0].get_text(strip=True):
+            data["TERYT"] = remove_text_in_brackets(cells[1].get_text(strip=True))
+        elif "Powierzchnia" in cells[0].get_text(strip=True):
+            data["Powierzchnia"] = remove_text_in_brackets(cells[1].get_text(strip=True))
+        elif "Populacja" in cells[0].get_text(strip=True):
+            data["Populacja"] = remove_text_in_brackets(cells[1].get_text(strip=True))
 
+    map_dets, map = voivo.find_all(class_='iboxs')
     symbol, flag = trs[2].find_all('tr')[0].find_all('td')
-    detailed_map, undetailed_map = infobox.find_all(class_='iboxs')
-
-    return Voivodeship(
-        name=name, country=data["Państwo"], iso=data["ISO"], teryt=data["TERYT"],
-        area=data["Powierzchnia"], population=data["Populacja"],
-        flag=get_image(flag), symbol=get_image(symbol), url=url, admi_url=admi_url,
-        detailed_map=get_image(detailed_map), undetailed_map=get_image(undetailed_map)
-    )
+    return Voivodeship(name=name, country=data["Państwo"], iso=data["ISO"], teryt=data["TERYT"],
+                       area=data["Powierzchnia"], population=data["Populacja"],
+                       flag=get_image(flag),
+                       url=url, admi_url=admi_url, symbol=get_image(symbol), detailed_map=get_image(map_dets),
+                       undetailed_map=get_image(map))
 
 
 def get_voivodeship_urls():
-    core_url = 'https://pl.wikipedia.org/'
     r = requests.get('https://pl.wikipedia.org/wiki/Wojew%C3%B3dztwo')
     soup = BeautifulSoup(r.content, 'html.parser')
     all_voivos_urls = [
@@ -83,7 +108,7 @@ def get_voivodeship_urls():
 
 
 if __name__ == "__main__":
-    voivodeships = read_from_file("wojewodztwa.csv",Voivodeship)
+    voivodeships = read_from_file("wojewodztwa.csv", Voivodeship)
     print(*voivodeships, sep='\n\n')
 
 # class Powiat:

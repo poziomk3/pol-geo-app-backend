@@ -1,4 +1,3 @@
-import csv
 from dataclasses import dataclass
 
 import requests
@@ -7,6 +6,8 @@ from bs4 import BeautifulSoup
 from utils import remove_text_in_brackets, get_image, write_to_file, get_image_2
 
 core_url = 'https://pl.wikipedia.org/'
+
+
 
 
 @dataclass

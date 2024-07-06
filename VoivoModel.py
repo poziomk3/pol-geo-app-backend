@@ -1,100 +1,112 @@
-import csv
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 import requests
 from bs4 import BeautifulSoup
-from utils import remove_text_in_brackets, get_image, read_from_file
+from utils import get_infobox, remove_text_in_brackets, get_symbol_and_flag, get_maps, write_to_file, open_url
 
 core_url = 'https://pl.wikipedia.org/'
 
 
 @dataclass
 class Voivodeship:
-    teryt: str
+    teryt: int
     iso: str
     country: str
     name: str
-    area: str
-    population: str
-    flag: str
-    symbol: str
+    area: int
+    population: int
+    wojewoda: str
+    marszalek: str
+    uwo_address: str
+    uma_address: str
     url: str
     admi_url: str
-    detailed_map: str
-    undetailed_map: str
 
     def __str__(self):
         return (
-            f"{self.teryt:2}  {self.iso:4}  {self.country:6}  {self.name:30}  {self.area:10}  {self.population:10} \n "
-            f"{self.flag:100}  {self.symbol:100}\n  {self.url:100}  {self.admi_url:100}\n  {self.detailed_map:100}  "
-            f"{self.undetailed_map:100}")
+            f"{self.teryt:2}  {self.iso:4}  {self.country:6}  {self.name:30}  {self.area:10}  {self.population:10}"
+            f"{self.wojewoda:20}  {self.marszalek:20} "
+            f"{self.url:120}  {self.admi_url:120}\n  "
+        )
 
     def __repr__(self):
         return self.__str__()
 
 
-def read_voivos_from_file(filename):
-    voivodeships = []
-    with open(filename, 'r', encoding='utf-8') as csvfile:
-        reader = csv.reader(csvfile)
-        for row in reader:
-            if len(row) == 12:  # Ensure all fields are present
-                voivodeship = Voivodeship(
-                    country=row[2],
-                    iso=row[1],
-                    teryt=row[0],
-                    area=row[4],
-                    population=row[5],
-                    name=row[3],
-                    flag=row[6],
-                    url=row[7],
-                    admi_url=row[8],
-                    symbol=row[9],
-                    detailed_map=row[10],
-                    undetailed_map=row[11]
-                )
-                voivodeships.append(voivodeship)
-    return voivodeships
-
-
-def scrape_voivo(url: str) -> Voivodeship:
-    core_url = 'https://pl.wikipedia.org/'
-    r = requests.get(url)
-    soup = BeautifulSoup(r.content, 'html.parser')
+def scrape_voivo(page, url) -> Voivodeship:
+    soup = page
     admi_url = core_url + \
                soup.find(attrs={"title": lambda x: x and "Podział administracyjny wojew" in x}).get_attribute_list(
                    'href')[0]
-    voivo = soup.find_all('table', class_='infobox')
+    voivo = get_infobox(soup)
 
-    if voivo[0].find('caption') is None:
-        voivo = voivo[1]
-    else:
-        voivo = voivo[0]
-    name = voivo.find('caption').text.strip()
+    name = voivo.find('caption').text.strip().lower().replace('województwo', '').strip()
+    print(name, '\n')
     trs = voivo.find_all('tr')
-    infos = trs[5:15]
+    infos = trs[2:]
 
     data = {}
     for row in infos:
         cells = row.find_all(['th', 'td'])
-        header = ""
-        if cells[0].get_text(strip=True).lower() in ["państwo", "panstwo"]:
+        if "Państwo" in cells[0].get_text(strip=True):
             data["Państwo"] = remove_text_in_brackets(cells[1].get_text(strip=True))
         elif "kod" in cells[0].get_text(strip=True).lower():
             data["ISO"] = remove_text_in_brackets(cells[1].get_text(strip=True))
         elif "TERYT" in cells[0].get_text(strip=True):
             data["TERYT"] = remove_text_in_brackets(cells[1].get_text(strip=True))
         elif "Powierzchnia" in cells[0].get_text(strip=True):
-            data["Powierzchnia"] = remove_text_in_brackets(cells[1].get_text(strip=True))
+            data["Powierzchnia"] = remove_text_in_brackets(cells[1].get_text(strip=True)).replace('km²', '')
         elif "Populacja" in cells[0].get_text(strip=True):
             data["Populacja"] = remove_text_in_brackets(cells[1].get_text(strip=True))
+        elif "Tablice rejestracyjne" in cells[0].get_text(strip=True):
+            data["Tablice rejestracyjne"] = remove_text_in_brackets(cells[1].get_text(strip=True))
+        elif "Marszałek" in cells[0].get_text(strip=True):
+            data["Marszałek"] = remove_text_in_brackets(cells[1].get_text(strip=True))
+        elif "Wojewoda" in cells[0].get_text(strip=True):
+            data["Wojewoda"] = remove_text_in_brackets(cells[1].get_text(strip=True))
+        elif "Adres Urzędu Marszałkowskiego:" in cells[0].get_text(strip=True):
+            data["Adres Urzędu Marszałkowskiego"] = remove_text_in_brackets(
+                BeautifulSoup(str(cells[0]).replace('<br/>', ' '), 'html.parser').get_text(strip=True)).replace(
+                'Adres Urzędu Marszałkowskiego:', '')
+        elif "Adres Urzędu Wojewódzkiego:" in cells[0].get_text(strip=True):
+            data["Adres Urzędu Wojewódzkiego"] = remove_text_in_brackets(
+                BeautifulSoup(str(cells[0]).replace('<br/>', ' '), 'html.parser').get_text(strip=True)).replace(
+                'Adres Urzędu Wojewódzkiego:', '')
 
-    map_dets, map = voivo.find_all(class_='iboxs')
-    symbol, flag = trs[2].find_all('tr')[0].find_all('td')
+    map_dets, undetailed_map = voivo.find_all(class_='iboxs')
+
     return Voivodeship(name=name, country=data["Państwo"], iso=data["ISO"], teryt=data["TERYT"],
                        area=data["Powierzchnia"], population=data["Populacja"],
-                       flag=get_image(flag),
-                       url=url, admi_url=admi_url, symbol=get_image(symbol), detailed_map=get_image(map_dets),
-                       undetailed_map=get_image(map))
+                       wojewoda=data["Wojewoda"],
+                       marszalek=data["Marszałek"],
+                       uwo_address=data["Adres Urzędu Wojewódzkiego"],
+                       uma_address=data["Adres Urzędu Marszałkowskiego"],
+                       url=url, admi_url=admi_url)
+
+
+def scrape_images(page):
+    voivo = get_infobox(page)
+    trs = voivo.find_all('tr')
+    infos = trs[2:]
+    primary_key = ''
+    for row in infos:
+        cells = row.find_all(['th', 'td'])
+        if "TERYT" in cells[0].get_text(strip=True):
+            primary_key = remove_text_in_brackets(cells[1].get_text(strip=True))
+    print(primary_key)
+    symbol, flag = get_symbol_and_flag(trs, primary_key)
+    detailed_map, undetailed_map = get_maps(voivo, primary_key)
+    return symbol, flag, detailed_map, undetailed_map
+
+
+def scrape_voivos_to_file(file_name):
+    for x in get_voivodeship_urls():
+        write_to_file(scrape_voivo(open_url(x), x), file_name)
+
+
+def scrape_images_to_file(file_name):
+    for x in get_voivodeship_urls():
+        for img in scrape_images(open_url(x)):
+            write_to_file(img, file_name)
 
 
 def get_voivodeship_urls():
@@ -105,49 +117,3 @@ def get_voivodeship_urls():
         for x in soup.find('table', class_='wikitable').find_all('tr')[1:]
     ]
     return all_voivos_urls
-
-
-if __name__ == "__main__":
-    voivodeships = read_from_file("wojewodztwa.csv", Voivodeship)
-    print(*voivodeships, sep='\n\n')
-
-# class Powiat:
-#     area: str
-#     population: str
-#     name: str
-#     flag: str
-#     url: str
-#     symbol: str
-#     detailed_map: str
-#     map: str
-#
-#
-# @dataclass
-# class Gmina:
-#     name: str
-#     type: 'GminaType'
-#     flag: 'Image'
-#     symbol: 'Image'
-#
-#
-# @dataclass
-# class City:
-#     name: str
-#     flag: 'Image'
-#     symbol: 'Image'
-#     is_capital: bool
-#
-#
-# @dataclass
-# class Image:
-#     name: str
-#     path: str
-#
-#
-# from enum import Enum
-#
-#
-# class GminaType(Enum):
-#     MIASTO = 1
-#     MIASTO_WIEJSKIE = 2
-#     WIEJSKA = 3

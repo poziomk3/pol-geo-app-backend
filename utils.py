@@ -1,7 +1,7 @@
 import csv
 import inspect
 import uuid
-from dataclasses import  dataclass
+from dataclasses import dataclass
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -36,17 +36,30 @@ def get_maps(infobox, foreign_key):
     index = 2
     detailed_map = ''
     undetailed_map = ''
-    detailed_map, undetailed_map = [x.find('a') for x in infobox.find_all(class_='iboxs')]
+    items = [x.find('a') for x in infobox.find_all(class_='iboxs')]
     # print(detailed_map, undetailed_map)
     # return None,None
-    return get_image_2(detailed_map, foreign_key, 'detailed_map'), get_image_2(undetailed_map, foreign_key,
-                                                                               'undetailed_map')
+    if len(items) == 0:
+        return None, None,None
+    else:
+        if len(items) == 3:
+            photo, detailed_map, undetailed_map = items
+            return get_image_2(photo, foreign_key, 'photo'), get_image_2(detailed_map, foreign_key,
+                                                                         'detailed_map'), get_image_2(
+                undetailed_map, foreign_key,
+                'undetailed_map')
+        elif len(items) == 2:
+            return get_image_2(items[0], foreign_key, 'photo'), None, get_image_2(items[1], foreign_key,
+                                                                                  'undetailed_map')
+        elif len(items) == 1:
+            return get_image_2(items[0], foreign_key, 'photo'), None, None
+    return None, None
 
 
 def get_symbol_and_flag(trs, foreign_key):
     index = 2
-    symbol = ''
-    flag = ''
+    symbol =None
+    flag = None
     while trs[index].get_attribute_list('class')[0] is not None:
         index += 1
     res = []
@@ -73,7 +86,7 @@ def get_image(base):
 
 def get_image_2(base, foreign_key, type):
     if base is None:
-        return ""
+        return None
     url = core_url + base.get_attribute_list('href')[0]
     r = requests.get(url)
     soup = BeautifulSoup(r.content, 'html.parser')

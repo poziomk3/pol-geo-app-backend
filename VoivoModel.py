@@ -32,13 +32,22 @@ class Voivodeship:
         return self.__str__()
 
 
+def get_voivodeship_urls():
+    r = requests.get('https://pl.wikipedia.org/wiki/Wojew%C3%B3dztwo')
+    soup = BeautifulSoup(r.content, 'html.parser')
+    all_voivos_urls = [
+        core_url + x.find_all('td')[1].find('a')['href']
+        for x in soup.find('table', class_='wikitable').find_all('tr')[1:]
+    ]
+    return all_voivos_urls
+
+
 def scrape_voivo(page, url) -> Voivodeship:
     soup = page
     admi_url = core_url + \
                soup.find(attrs={"title": lambda x: x and "Podział administracyjny wojew" in x}).get_attribute_list(
                    'href')[0]
     voivo = get_infobox(soup)
-
     name = voivo.find('caption').text.strip().lower().replace('województwo', '').strip()
     print(name, '\n')
     trs = voivo.find_all('tr')
@@ -72,8 +81,6 @@ def scrape_voivo(page, url) -> Voivodeship:
                 BeautifulSoup(str(cells[0]).replace('<br/>', ' '), 'html.parser').get_text(strip=True)).replace(
                 'Adres Urzędu Wojewódzkiego:', '')
 
-    map_dets, undetailed_map = voivo.find_all(class_='iboxs')
-
     return Voivodeship(name=name, country=data["Państwo"], iso=data["ISO"], teryt=data["TERYT"],
                        area=data["Powierzchnia"], population=data["Populacja"],
                        wojewoda=data["Wojewoda"],
@@ -106,14 +113,5 @@ def scrape_voivos_to_file(file_name):
 def scrape_images_to_file(file_name):
     for x in get_voivodeship_urls():
         for img in scrape_images(open_url(x)):
-            write_to_file(img, file_name)
-
-
-def get_voivodeship_urls():
-    r = requests.get('https://pl.wikipedia.org/wiki/Wojew%C3%B3dztwo')
-    soup = BeautifulSoup(r.content, 'html.parser')
-    all_voivos_urls = [
-        core_url + x.find_all('td')[1].find('a')['href']
-        for x in soup.find('table', class_='wikitable').find_all('tr')[1:]
-    ]
-    return all_voivos_urls
+            if img is not None:
+                write_to_file(img, file_name)

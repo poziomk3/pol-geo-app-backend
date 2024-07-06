@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-
 import requests
 from bs4 import BeautifulSoup
-
-from utils import remove_text_in_brackets, write_to_file, open_url, get_infobox, get_symbol_and_flag, get_maps
+from utils import remove_text_in_brackets, write_to_file, open_url, get_infobox, get_symbol_and_flag, get_maps, \
+    remove_after_a
 
 core_url = 'https://pl.wikipedia.org/'
 
@@ -21,10 +20,6 @@ class Powiat:
     address: str
     url: str
 
-    # photo: str
-    # detailed_map: str
-    # undetailed_map: str
-
     def __str__(self):
         return (
             f"{self.teryt:2}  {self.name:30}  {self.voivodeship:30}  {self.registration_plate:4}  {self.area:10} "
@@ -39,16 +34,6 @@ def get_powiats_urls():
     r = requests.get('https://pl.wikipedia.org/wiki/Lista_powiat%C3%B3w_w_Polsce')
     soup = BeautifulSoup(r.content, 'html.parser')
     return [core_url + x.find('a')['href'] for x in soup.find('table', class_='wikitable').find_all('tr')][1:]
-
-
-test_url = 'https://pl.wikipedia.org/wiki/Powiat_g%C3%B3rowski'
-
-
-def remove_after_a(s):
-    index = s.find('<a')  # Find the index of '<a' in the string
-    if index != -1:  # If '<a' is found
-        s = s[:index]  # Remove everything after '<a' by slicing the string
-    return s
 
 
 def scrape_powiat(page, url):
@@ -97,36 +82,7 @@ def scrape_powiat(page, url):
             data["Adres"] = remove_text_in_brackets(
                 BeautifulSoup(str(cells[0]).replace('<br/>', ' '), 'html.parser').get_text(strip=True)).replace(
                 'Urząd miejski', '')
-
-    # symbol, flag = None, None
-    # index = 2
-    #
-    # while (trs[index].get_attribute_list('class')[0] != None):
-    #     index += 1
-    # res = []
-    # for item in trs[index].find_all('a'):
-    #     if (item.find('img') != None):
-    #         res.append(item)
-    # if len(res) == 2:
-    #     symbol, flag = res
-    # elif len(res) == 1:
-    #     symbol = res[0]
-    # else:
-    #     pass
-    #
-    # photo = powiat.find(class_='iboxs')
     voivo = data["TERYT"][0:2]
-    # map_dets, map = None, None
-    # if len(powiat.find_all(class_='iboxs')) < 2:
-    #     pass
-    # else:
-    #     if len(powiat.find_all(class_='iboxs')[1:]) == 2:
-    #         map_dets, map = powiat.find_all(class_='iboxs')[1:]
-    #
-    #     elif len(powiat.find_all(class_='iboxs')[1:]) == 1:
-    #         map = powiat.find_all(class_='iboxs')[1]
-    #     else:
-    #         pass
 
     return Powiat(teryt=data["TERYT"], name=name, voivodeship=voivo, registration_plate=data["Rejestracja"],
                   area=data["Powierzchnia"], population=data["Populacja"],
@@ -159,15 +115,3 @@ def scrape_images_to_file(file_name):
         for img in scrape_images(open_url(x)):
             if img is not None:
                 write_to_file(img, file_name)
-
-
-
-# for x in powiats[40:43]:
-#     print(x)
-#     for img in scrape_images(open_url(x)):
-#         print(img)
-# print(powiats[71:])
-# for x in powiats[71:]:
-#     powa = scrape_powiat(x)
-#     print(powa)
-#     write_to_file(powa, "powiaty.csv")

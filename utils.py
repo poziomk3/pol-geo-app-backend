@@ -149,3 +149,10 @@ def remove_text_in_brackets(input_string):
 def open_url(url: str):
     r = requests.get(url)
     return BeautifulSoup(r.content, 'html.parser')
+
+
+def remove_after_a(s):
+    index = s.find('<a')  # Find the index of '<a' in the string
+    if index != -1:  # If '<a' is found
+        s = s[:index]  # Remove everything after '<a' by slicing the string
+    return s
